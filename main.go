@@ -35,10 +35,21 @@ var (
 		"",
 		"The domain requested",
 	)
+
 	validation = flag.String(
 		"validation",
 		"",
-		"The ACME validation, leave empty to delete all records matching domain (cleanup mode)",
+		"The ACME validation, leave empty to delete all records matching domain (cleanup mode), exactly one of validation, cleanup-id, and cleanup-all must be set",
+	)
+	cleanupID = flag.String(
+		"cleanup-id",
+		"",
+		"The subdomain id to cleanup, exactly one of validation, cleanup-id, and cleanup-all must be set",
+	)
+	cleanupAll = flag.Bool(
+		"cleanup-all",
+		false,
+		"Cleanup all subdomains, exactly one of validation, cleanup-id, and cleanup-all must be set",
 	)
 
 	endpoint = flag.String(
@@ -101,6 +112,26 @@ func main() {
 
 	ctx := context.Background()
 
+	var exclusiveCount int
+	if *validation != "" {
+		exclusiveCount++
+	}
+	if *cleanupID != "" {
+		exclusiveCount++
+	}
+	if *cleanupAll {
+		exclusiveCount++
+	}
+	if exclusiveCount != 1 {
+		fatal(
+			ctx,
+			"Exactly one of validation, cleanup-id, and cleanup-all must be set",
+			"validation", *validation,
+			"cleanup-id", *cleanupID,
+			"cleanup-all", *cleanupAll,
+		)
+	}
+
 	topDomain, err := publicsuffix.EffectiveTLDPlusOne(*domain)
 	if err != nil {
 		fatal(ctx, "Failed to split domain", "err", err, "domain", *domain)
@@ -118,8 +149,15 @@ func main() {
 	if *validation != "" {
 		slog.DebugContext(ctx, "input", "validation", *validation)
 		create(ctx, topDomain, subDomain, *validation)
-	} else {
+		return
+	}
+	if *cleanupID != "" {
+		deleteID(ctx, topDomain, *cleanupID)
+		return
+	}
+	if *cleanupAll {
 		cleanup(ctx, topDomain, subDomain)
+		return
 	}
 }
 
@@ -395,6 +433,7 @@ func cleanup(ctx context.Context, domain, subDomain string) {
 	for _, id := range ids {
 		deleteID(ctx, domain, id)
 	}
+	slog.InfoContext(ctx, "deleted records", "ids", ids, "n", len(ids))
 }
 
 func create(ctx context.Context, domain, subDomain, validation string) {
@@ -450,6 +489,7 @@ func create(ctx context.Context, domain, subDomain, validation string) {
 	}
 	var data struct {
 		Status string `json:"status"`
+		ID     int    `json:"id"`
 	}
 	body, err := decodeBody(resp, &data)
 	if err != nil {
@@ -475,4 +515,5 @@ func create(ctx context.Context, domain, subDomain, validation string) {
 		return
 	}
 	slog.DebugContext(ctx, "created record", "url", url, "response", body, "decoded", data)
+	fmt.Println(data.ID)
 }

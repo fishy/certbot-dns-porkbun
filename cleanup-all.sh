@@ -11,8 +11,11 @@ porkbun_secret="sk1_TODO_REPLACE_ME"
 # absolute path to the binary.
 bin="$(dirname "$0")/certbot-dns-porkbun"
 
+# change this to the domain you want to clean up
+domain="REPLACE_ME"
+
 ${bin} \
   --apikey="${porkbun_key}" \
   --secretapikey="${porkbun_secret}" \
-  --domain="${CERTBOT_DOMAIN}" \
-  --cleanup-id="${CERTBOT_AUTH_OUTPUT}"
+  --domain="${domain}" \
+  --cleanup-all
