@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"flag"
 	"fmt"
 	"io"
@@ -102,7 +102,7 @@ func main() {
 				req.SecKey = "*REDACTED*"
 
 				var sb strings.Builder
-				if err := json.NewEncoder(&sb).Encode(req); err == nil {
+				if err := json.MarshalWrite(&sb, req); err == nil {
 					a.Value = slog.StringValue(sb.String())
 				}
 			}
@@ -192,7 +192,7 @@ func decodeBody(resp *http.Response, data any) (string, error) {
 		resp.Body.Close()
 	}()
 
-	err := json.NewDecoder(reader).Decode(data)
+	err := json.UnmarshalRead(reader, data)
 	return buf.String(), err
 }
 
@@ -207,7 +207,7 @@ func getIP(ctx context.Context) string {
 		APIKey: *apiKey,
 		SecKey: *secKey,
 	}
-	if err := json.NewEncoder(buf).Encode(req); err != nil {
+	if err := json.MarshalWrite(buf, req); err != nil {
 		fatal(
 			ctx,
 			"Failed to json encode request",
@@ -283,7 +283,7 @@ func getIDs(ctx context.Context, domain, subDomain string) []string {
 		APIKey: *apiKey,
 		SecKey: *secKey,
 	}
-	if err := json.NewEncoder(buf).Encode(req); err != nil {
+	if err := json.MarshalWrite(buf, req); err != nil {
 		fatal(
 			ctx,
 			"Failed to json encode request for getIDs",
@@ -366,7 +366,7 @@ func deleteID(ctx context.Context, domain, id string) {
 		APIKey: *apiKey,
 		SecKey: *secKey,
 	}
-	if err := json.NewEncoder(buf).Encode(req); err != nil {
+	if err := json.MarshalWrite(buf, req); err != nil {
 		fatal(
 			ctx,
 			"Failed to json encode request for deleteID",
@@ -453,7 +453,7 @@ func create(ctx context.Context, domain, subDomain, validation string) {
 		TTL:       strconv.FormatInt(int64(ttl.Seconds()), 10),
 	}
 
-	if err := json.NewEncoder(buf).Encode(req); err != nil {
+	if err := json.MarshalWrite(buf, req); err != nil {
 		fatal(
 			ctx,
 			"Failed to json encode request for create",
